@@ -12,7 +12,7 @@ import SPMUtility
 import XCParseCore
 
 let xcparseCurrentVersion = Version(2, 1, 0)
-let validFastlaneLanguageCodes = ["ar-SA", "ca", "cs", "da", "de-DE", "el", "en-AU", "en-CA", "en-GB", "en-US", "es-ES", "es-MX", "fi", "fr-CA", "fr-FR", "he", "hi", "hr", "hu", "id", "it", "ja", "ko", "ms", "nl-NL", "no", "pl", "pt-BR", "pt-PT", "ro", "ru", "sk", "sv", "th", "tr", "uk", "vi", "zh-Hans", "zh-Hant"]
+let validFastlaneLanguageCodes: Set<String> = ["ar-SA", "ca", "cs", "da", "de-DE", "el", "en-AU", "en-CA", "en-GB", "en-US", "es-ES", "es-MX", "fi", "fr-CA", "fr-FR", "he", "hi", "hr", "hu", "id", "it", "ja", "ko", "ms", "nl-NL", "no", "pl", "pt-BR", "pt-PT", "ro", "ru", "sk", "sv", "th", "tr", "uk", "vi", "zh-Hans", "zh-Hant"]
 
 struct XCResultToolCompatability {
     var supportsExport: Bool = true
@@ -27,6 +27,7 @@ struct AttachmentExportOptions {
     var divideByLanguage: Bool = false
     var divideByRegion: Bool = false
     var divideByTest: Bool = false
+    var removeUUID: Bool = false
     var fastlaneDeliver: Bool = false
 
     var xcresulttoolCompatability = XCResultToolCompatability()
@@ -209,6 +210,9 @@ class XCPParser {
 
         // This is going to be the mapping of the places we're going to export the screenshots to
         var exportURLsToAttachments: [String : [ActionTestAttachment]] = [:]
+        
+        // Solve overriding file with same name issue when removing UUID
+        var filenameCounter = [String: Int]()
 
         let actions = invocationRecord.actions.filter { $0.actionResult.testsRef != nil }
         for action in actions {
@@ -256,10 +260,29 @@ class XCPParser {
                         if testSummaryScreenshotURL.createDirectoryIfNecessary(createIntermediates: true) != true {
                             continue
                         }
+                        
+                        if options.fastlaneDeliver == true || options.removeUUID {
+                            let fastlaneAttachment = filteredAttachments.map { attachment -> ActionTestAttachment in
+                                guard let name = attachment.name?.removeUUID(),
+                                      let fileextension = attachment.filename?.getExtension()
+                                else { return attachment }
+                                
+                                let id = filenameCounter[name, default: 1]
+                                filenameCounter[name, default: 1] += 1
+                                let filename = name + "_" + String(id) + fileextension
+                                return ActionTestAttachment(attachment: attachment, with: filename)
+                            }
+
+                            var existingAttachmentsForURL = exportURLsToAttachments[testSummaryScreenshotURL.path, default: []]
+                            existingAttachmentsForURL.append(contentsOf: fastlaneAttachment)
+                            exportURLsToAttachments[testSummaryScreenshotURL.path] = existingAttachmentsForURL
+
+                            continue
+                        }
 
                         // Now that we know what we want to export, save it to the dictionary so we can have all the exports
                         // done at once with one progress bar per URL
-                        var existingAttachmentsForURL = exportURLsToAttachments[testSummaryScreenshotURL.path] ?? []
+                        var existingAttachmentsForURL = exportURLsToAttachments[testSummaryScreenshotURL.path, default: []]
                         existingAttachmentsForURL.append(contentsOf: filteredAttachments)
                         exportURLsToAttachments[testSummaryScreenshotURL.path] = existingAttachmentsForURL
                     }
@@ -444,5 +467,30 @@ class XCPParser {
         registry.run()
 
         self.printLatestVersionInfoIfNeeded()
+    }
+}
+
+private extension String {
+    func removeUUID() -> String {
+        var hasUUID = false
+        var idRange = (self.count, -1)
+        
+        for (i, char) in self.enumerated().reversed() {
+            if char == "_" { break }
+            hasUUID = hasUUID || char == "."
+            
+            if hasUUID {
+                idRange = (min(idRange.0, i), max(idRange.1, i))
+            }
+        }
+        
+        let stringArr = Array(self)
+        guard hasUUID, idRange.0 < idRange.1, stringArr[idRange.0..<idRange.1].contains("-") else { return self }
+        
+        return String(stringArr[...idRange.0] + stringArr[(idRange.1+1)...])
+    }
+    
+    func getExtension() -> String {
+        return "." + URL(fileURLWithPath: self).pathExtension
     }
 }

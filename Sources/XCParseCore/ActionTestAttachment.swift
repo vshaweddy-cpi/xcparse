@@ -48,4 +48,35 @@ open class ActionTestAttachment : Codable {
         payloadRef = try container.decodeXCResultObjectIfPresent(forKey: .payloadRef)
         payloadSize = try container.decodeXCResultType(forKey: .payloadSize)
     }
+    
+    init(uniformTypeIdentifier: String,
+         name: String?,
+         timestamp: Date?,
+         lifetime: String,
+         inActivityIdentifier: Int,
+         filename: String?,
+         payloadRef: Reference?,
+         payloadSize: Int) {
+        self.uniformTypeIdentifier = uniformTypeIdentifier
+        self.name = name
+        self.timestamp = timestamp
+        self.lifetime = lifetime
+        self.inActivityIdentifier = inActivityIdentifier
+        self.filename = filename
+        self.payloadRef = payloadRef
+        self.payloadSize = payloadSize
+    }
+}
+
+public extension ActionTestAttachment {
+    convenience init(attachment: ActionTestAttachment, with filename: String?) {
+        self.init(uniformTypeIdentifier: attachment.uniformTypeIdentifier,
+                  name: attachment.name,
+                  timestamp: attachment.timestamp,
+                  lifetime: attachment.lifetime,
+                  inActivityIdentifier: attachment.inActivityIdentifier,
+                  filename: filename,
+                  payloadRef: attachment.payloadRef,
+                  payloadSize: attachment.payloadSize)
+    }
 }
