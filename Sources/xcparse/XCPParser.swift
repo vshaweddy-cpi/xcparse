@@ -100,10 +100,13 @@ struct AttachmentExportOptions {
     func screenshotDirectoryURL(_ testableSummary: ActionTestableSummary, forBaseURL baseURL: Foundation.URL) -> Foundation.URL {
         var languageRegionDirectoryName: String? = nil
 
-        let testLanguage = testableSummary.testLanguage ?? "System Language"
+        // MARK : - TO DO 
+        // change this to know system language, follow default simulator
+        // run the verbose if the parsing is wrong
+        // run alex project edit scheme > run test > go to report navigator right click and extract xcresult
+        let testLanguage = testableSummary.testLanguage ?? "en-US"
         let testRegion = testableSummary.testRegion ?? "System Region"
         if self.fastlaneDeliver == true {
-            print(validFastlaneLanguageCodes.count)
             if validFastlaneLanguageCodes.contains(testLanguage) {
                 languageRegionDirectoryName = testLanguage
             } else if validFastlaneLanguageCodes.contains("\(testLanguage)-\(testRegion)"){
@@ -247,6 +250,10 @@ class XCPParser {
                         continue
                     }
 
+                    // get file name
+                    // testavleSummary -> tests [] -> subtests [] -> actiontestsummary identifiableobject -> identifier (filename)
+                    // get method name
+                    // testavleSummary -> tests [] -> subtests [] -> subtest [] -> actiontestsummary identifiableobject -> identifier (method)
                     let testableSummariesToTestActivity = testableSummary.flattenedTestSummaryMap(withXCResult: xcresult)
                     for (testSummary, childActivitySummaries) in testableSummariesToTestActivity {
                         if options.testSummaryFilter(testSummary) == false {
@@ -472,6 +479,7 @@ class XCPParser {
 
 private extension String {
     func removeUUID() -> String {
+        // maybe use .firstindex(of) instead or .replacingOccurrences
         var hasUUID = false
         var idRange = (self.count, -1)
         
